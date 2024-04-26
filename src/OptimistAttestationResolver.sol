@@ -57,8 +57,14 @@ contract OptimistAttestationResolver is
         _setRoleAdmin(ALLOWLIST_ROLE, ADMIN_ROLE);
     }
 
+    /// @notice check user has attestation
     function hasAttestation(address user) public view returns (bool) {
         return attestationUidByRecipient[user] != bytes32(0);
+    }
+
+    /// @notice get user attestationUid
+    function getAttestationUid(address user) public view returns (bytes32) {
+        return attestationUidByRecipient[user];
     }
 
     /// @inheritdoc SchemaResolverUpgradeable
