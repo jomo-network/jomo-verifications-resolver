@@ -22,8 +22,8 @@ contract OptimistAttestationResolver is
     PausableUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    event OptimistAttestationCreated();
-    event OptimistAttestationRevoked();
+    event OptimistAttestationCreated(address indexed attester);
+    event OptimistAttestationRevoked(address indexed attester);
 
     bytes32 public constant PAUSE_ROLE = keccak256("optimist.hackathon-participants.pause-role");
     bytes32 public constant ADMIN_ROLE = keccak256("optimist.hackathon-participants.admin-role");
@@ -106,15 +106,17 @@ contract OptimistAttestationResolver is
     }
 
     /**
-    * @dev Allow or remove attestor.
+    * @dev Allow or remove attester.
     * @param enableOrNot A flag used to determine whether to allow or remove.
-    * @param attestor The attestor address
+    * @param attester The attester address
     */
-    function enableAllowAttestor(bool enableOrNot, address attestor) external onlyRole(ALLOWLIST_ROLE) {
+    function enableAllowAttester(bool enableOrNot, address attester) external onlyRole(ALLOWLIST_ROLE) {
         if (enableOrNot) {
-            _allowAttester(attestor);
+            _allowAttester(attester);
+            emit OptimistAttestationCreated(attester);
         } else {
-            _removeAttester(attestor);
+            _removeAttester(attester);
+            emit OptimistAttestationRevoked(attester);
         }
     }
 }
