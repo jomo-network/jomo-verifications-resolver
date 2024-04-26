@@ -34,10 +34,6 @@ contract OptimistAllowlist is ISemver {
     ///         attestations.
     address public immutable OPTIMIST_INVITER;
 
-    /// @notice Address of VerificationsResolver contract that issues 'optimist.hackathon-participants'
-    ///         attestations.
-    address public immutable VERIFICATIONS_RESOLVER;
-
     /// @notice Semantic version.
     /// @custom:semver 1.1.0
     string public constant version = "1.1.0";
@@ -50,14 +46,12 @@ contract OptimistAllowlist is ISemver {
         AttestationStation _attestationStation,
         address _allowlistAttestor,
         address _coinbaseQuestAttestor,
-        address _optimistInviter,
-        address _verificationsResolver
+        address _optimistInviter
     ) {
         ATTESTATION_STATION = _attestationStation;
         ALLOWLIST_ATTESTOR = _allowlistAttestor;
         COINBASE_QUEST_ATTESTOR = _coinbaseQuestAttestor;
         OPTIMIST_INVITER = _optimistInviter;
-        VERIFICATIONS_RESOLVER  = _verificationsResolver;
     }
 
     /// @notice Checks whether a given address is allowed to mint the Optimist NFT yet. Since the
@@ -72,7 +66,7 @@ contract OptimistAllowlist is ISemver {
     /// @return allowed_ Whether or not the address is allowed to mint yet.
     function isAllowedToMint(address _claimer) public view returns (bool allowed_) {
         allowed_ = _hasAttestationFromAllowlistAttestor(_claimer) || _hasAttestationFromCoinbaseQuestAttestor(_claimer)
-            || _hasAttestationFromOptimistInviter(_claimer) || _hasAttestationFromVerificationResolver(_claimer);
+            || _hasAttestationFromOptimistInviter(_claimer);
     }
 
     /// @notice Checks whether an address has a valid 'optimist.can-mint' attestation from the
@@ -99,16 +93,6 @@ contract OptimistAllowlist is ISemver {
         // Expected attestation value is the inviter's address
         valid_ = _hasValidAttestation(
             OPTIMIST_INVITER, _claimer, OptimistConstants.OPTIMIST_CAN_MINT_FROM_INVITE_ATTESTATION_KEY
-        );
-    }
-
-    /// @notice Checks whether an address has a valid attestation from the VerificationsResolver contract.
-    /// @param _claimer Address to check.
-    /// @return valid_ Whether or not the address has a valid attestation.
-    function _hasAttestationFromVerificationResolver(address _claimer) internal view returns (bool valid_) {
-        // Expected attestation value is the verification resolver's address
-        valid_ = _hasValidAttestation(
-            VERIFICATIONS_RESOLVER, _claimer, VERIFICATIONS_RESOLVER_ATTESTATION_KEY
         );
     }
 

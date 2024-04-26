@@ -9,6 +9,8 @@ import {Attestation} from "eas-contracts/Common.sol";
 
 import {AllowlistResolverUpgradeable} from "./abstract/AllowlistResolverUpgradeable.sol";
 import {SchemaResolverUpgradeable} from "./abstract/SchemaResolverUpgradeable.sol";
+import {Optimist} from "./op-nft/Optimist.sol";
+import "./op-nft/OptimistV2.sol";
 
 /**
  * @title EAS Schema Resolver for Optimist Attestation Resolver
@@ -32,6 +34,9 @@ contract OptimistAttestationResolver is
     /// @notice track recipient attestationUid
     mapping (address => bytes32) private attestationUidByRecipient;
 
+    /// @notice Optimist NFT
+    Optimist private optimist;
+
     /**
     * @dev Locks the contract, preventing any future reinitialization. This implementation contract was designed to be called through proxies.
     * @custom:oz-upgrades-unsafe-allow constructor
@@ -45,7 +50,7 @@ contract OptimistAttestationResolver is
     * @param admin The address to be granted with the default admin Role.
     * @param eas The address of the EAS attestation contract.
     */
-    function initialize(address admin, IEAS eas) initializer public {
+    function initialize(address admin, IEAS eas, Optimist _optimist) initializer public {
         __SchemaResolver_init(eas);
         __AccessControl_init();
         __Pausable_init();
@@ -55,6 +60,7 @@ contract OptimistAttestationResolver is
         require(_grantRole(ADMIN_ROLE, admin));
         _setRoleAdmin(PAUSE_ROLE, ADMIN_ROLE);
         _setRoleAdmin(ALLOWLIST_ROLE, ADMIN_ROLE);
+        optimist = _optimist;
     }
 
     /// @notice check user has attestation
@@ -79,6 +85,7 @@ contract OptimistAttestationResolver is
         require(!allowedAttesters[attestationInput.attester], "OptimistAttestationResolver: attester is not allowed");
         require(attestationUidByRecipient[attestationInput.recipient] == bytes32(0), "OptimistAttestationResolver: recipient already record by uid");
         attestationUidByRecipient[attestationInput.recipient] = attestationInput.uid;
+        optimist.mint(attestationInput.recipient);
         return true;
     }
 

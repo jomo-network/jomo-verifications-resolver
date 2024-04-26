@@ -7,7 +7,8 @@ import "eas-contracts/IEAS.sol";
 import "./mocks/MockSchemaRegistry.sol";
 import {MockEAS} from "./mocks/MockEAS.sol";
 import {OptimistAttestationResolver} from "../src/OptimistAttestationResolver.sol";
-import {AllowlistOptimistNFT} from "../src/op-nft/AllowlistOptimistNFT.sol";
+import "../src/op-nft/Optimist.sol";
+import "../src/op-nft/OptimistV2.sol";
 
 contract OptimistAttestationResolverTest is Test {
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
@@ -18,11 +19,14 @@ contract OptimistAttestationResolverTest is Test {
     bytes32 public constant ALLOWLIST_ROLE = keccak256("optimist.hackathon-participants.allowlist-role");
 
     OptimistAttestationResolver optimistAttestationResolver;
-    AllowlistOptimistNFT optimistNFT;
+    Optimist optimistNFT;
     MockEAS eas;
     MockSchemaRegistry registry;
+    AttestationStation attestationStation;
+    OptimistAllowlist optimistAllowlist;
 
-    address transparentProxy;
+    address resolverProxy;
+    address optimistProxy;
     address admin = makeAddr("owner");
     address alice = address(10086);
     address bob = address(10090);
@@ -51,31 +55,58 @@ contract OptimistAttestationResolverTest is Test {
     }
 
     function _initializeContracts() internal {
+        attestationStation = new AttestationStation();
+        optimistAllowlist = new OptimistAllowlist({
+            _attestationStation: attestationStation ,
+            _allowlistAttestor: fish_allowlistAttestor,
+            _coinbaseQuestAttestor: gong_coinbaseAttestor,
+            _optimistInviter: eve_inviteGranter
+        });
         registry = new MockSchemaRegistry();
         eas = new MockEAS(registry);
-        transparentProxy = Upgrades.deployTransparentProxy(
+        Options memory options;
+        options.constructorData = abi.encode(
+            name, symbol,
+            carol_baseURIAttestor,
+            attestationStation,
+            optimistAllowlist
+        );
+        optimistProxy = Upgrades.deployTransparentProxy(
+            "Optimist.sol:Optimist",
+            admin,
+            "",
+            options
+        );
+        optimistNFT = Optimist(optimistProxy);
+        resolverProxy = Upgrades.deployTransparentProxy(
             "OptimistAttestationResolver.sol:OptimistAttestationResolver",
             admin,
-            abi.encodeCall(OptimistAttestationResolver.initialize, (admin, eas))
+            abi.encodeCall(OptimistAttestationResolver.initialize, (admin, eas, optimistNFT))
         );
-        optimistAttestationResolver = OptimistAttestationResolver(payable(transparentProxy));
-        optimistNFT = new AllowlistOptimistNFT({
-            _name: name,
-            _symbol: symbol,
-            _baseURIAttestor: carol_baseURIAttestor,
-            _optimistAllowlist: optimistAttestationResolver
-        });
+        optimistAttestationResolver = OptimistAttestationResolver(payable(resolverProxy));
         vm.prank(admin);
         optimistAttestationResolver.grantRole(ALLOWLIST_ROLE, allowlist_role);
     }
 
-    function test_mint_failed_before_make_attestation() external {
+    function test_mint_failed_before_upgrade() external {
         vm.prank(bob);
-        vm.expectRevert("AllowlistOptimistNFT: address is not on allowList");
+        vm.expectRevert("Optimist: address is not on allowList");
         optimistNFT.mint(bob);
     }
 
-    function test_register_schema_and_create_attestation() external {
+    function test_mint_after_upgrade() external {
+        _upgradeToOptimistV2();
+        _createAttestation();
+        _checkAliceNotInAllowList();
+    }
+
+    function _checkAliceNotInAllowList() internal {
+        vm.prank(alice);
+        vm.expectRevert("OptimistV2: address is not on allowList");
+        optimistNFT.mint(alice);
+    }
+
+    function _createAttestation() internal {
         string memory schema = "";
         bytes32 id = registry.register(schema, optimistAttestationResolver, false);
         assertNotEq(id, bytes32(0));
@@ -92,18 +123,23 @@ contract OptimistAttestationResolverTest is Test {
             data: requestData
         });
         vm.prank(allowlist_role);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(address(0), bob, _getTokenId(bob));
         bytes32 id2 = eas.attest(request);
         assertNotEq(id2, bytes32(0));
         assertTrue(optimistAttestationResolver.hasAttestation(bob));
+    }
 
-        vm.prank(alice);
-        vm.expectRevert("AllowlistOptimistNFT: address is not on allowList");
-        optimistNFT.mint(alice);
-
-        vm.expectEmit(true, true, true, true);
-        emit Transfer(address(0), bob, _getTokenId(bob));
-        vm.prank(bob);
-        optimistNFT.mint(bob);
+    function _upgradeToOptimistV2() internal {
+        Options memory options;
+        options.constructorData = abi.encode(name, symbol, carol_baseURIAttestor, attestationStation, optimistAllowlist);
+        Upgrades.upgradeProxy(
+            address(optimistProxy),
+            "OptimistV2.sol:OptimistV2",
+            abi.encodeCall(OptimistV2.initializeV2, (optimistAttestationResolver)),
+            options,
+            admin
+        );
     }
 
     function test_isemver_version() view external {

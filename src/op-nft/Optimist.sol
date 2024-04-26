@@ -17,12 +17,15 @@ contract Optimist is ERC721BurnableUpgradeable, ISemver {
     bytes32 public constant BASE_URI_ATTESTATION_KEY = bytes32("optimist.base-uri");
 
     /// @notice Attestor who attests to baseURI.
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable BASE_URI_ATTESTOR;
 
     /// @notice Address of the AttestationStation contract.
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     AttestationStation public immutable ATTESTATION_STATION;
 
     /// @notice Address of the OptimistAllowlist contract.
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     OptimistAllowlist public immutable OPTIMIST_ALLOWLIST;
 
     /// @notice Semantic version.
@@ -34,6 +37,7 @@ contract Optimist is ERC721BurnableUpgradeable, ISemver {
     /// @param _baseURIAttestor    Address of the baseURI attestor.
     /// @param _attestationStation Address of the AttestationStation contract.
     /// @param _optimistAllowlist  Address of the OptimistAllowlist contract
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
         string memory _name,
         string memory _symbol,
