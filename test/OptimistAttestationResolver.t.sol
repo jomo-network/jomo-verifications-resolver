@@ -66,7 +66,7 @@ contract OptimistAttestationResolverTest is Test {
             _optimistAllowlist: optimistAttestationResolver
         });
         vm.prank(admin);
-        optimistAttestationResolver.grantRole(ALLOWLIST_ROLE,allowlist_role);
+        optimistAttestationResolver.grantRole(ALLOWLIST_ROLE, allowlist_role);
     }
 
     function test_mint_failed_before_make_attestation() external {
@@ -81,7 +81,7 @@ contract OptimistAttestationResolverTest is Test {
         assertNotEq(id, bytes32(0));
         AttestationRequestData memory requestData = AttestationRequestData({
             recipient: bob,
-            expirationTime : uint64(block.timestamp + 120),
+            expirationTime: uint64(block.timestamp + 120),
             revocable: false,
             refUID: bytes32(0),
             data: new bytes(0),
@@ -104,5 +104,11 @@ contract OptimistAttestationResolverTest is Test {
         emit Transfer(address(0), bob, _getTokenId(bob));
         vm.prank(bob);
         optimistNFT.mint(bob);
+    }
+
+    function test_isemver_version() view external {
+        assertEq(optimistAttestationResolver.version(), string(
+            abi.encodePacked(Strings.toString(1), ".", Strings.toString(3), ".", Strings.toString(0))
+        ));
     }
 }
