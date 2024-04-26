@@ -4,11 +4,11 @@ pragma solidity ^0.8.20;
 import {Test} from "forge-std/Test.sol";
 import {Upgrades, Options} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import "eas-contracts/IEAS.sol";
-import "../src/op-nft/OptimistAllowlist.sol";
-import "../src/op-nft/Optimist.sol";
-import "../src/VerificationsResolver.sol";
-import "./mocks/MockSchemaRegistry.sol";
-import {MockEAS} from "./mocks/MockEAS.sol";
+import "../../src/op-nft/OptimistAllowlist.sol";
+import "../../src/op-nft/Optimist.sol";
+import "../../src/deprecated/VerificationsResolver.sol";
+import "../mocks/MockSchemaRegistry.sol";
+import {MockEAS} from "../mocks/MockEAS.sol";
 
 contract VerificationsResolverTest is Test {
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);

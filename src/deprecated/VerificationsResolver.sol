@@ -7,17 +7,16 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {IEAS} from "eas-contracts/IEAS.sol";
 import {Attestation} from "eas-contracts/Common.sol";
 
-import {SchemaResolverUpgradeable} from "./abstract/SchemaResolverUpgradeable.sol";
-import "./op-nft/AttestationStation.sol";
-import "./libraries/AttestationErrors.sol";
+import {SchemaResolverUpgradeable} from "../abstract/SchemaResolverUpgradeable.sol";
+import "../libraries/AttestationErrors.sol";
+import "../op-nft/AttestationStation.sol";
 
 /**
  * @title EAS Schema Resolver for Optimist Verifications
  * @notice Manages schemas related to Optimist Verifications attestations.
  * @dev Only allowlisted entities can attest; successful attestations are record and allow to mint.
  */
-/// @custom:oz-upgrades-from VerificationsResolver
-contract VerificationsResolverOnlyForTestUpgrade is
+contract VerificationsResolver is
     SchemaResolverUpgradeable,
     AccessControlUpgradeable,
     PausableUpgradeable,
@@ -79,15 +78,15 @@ contract VerificationsResolverOnlyForTestUpgrade is
         return true;
     }
 
+    /**
+    * @dev Pause the contract or not.
+    * @param enableOrNot A flag used to determine whether to pause.
+    */
     function enablePaused(bool enableOrNot) external onlyRole(PAUSE_ROLE) {
         if (enableOrNot) {
             _pause();
         } else {
             _unpause();
         }
-    }
-
-    function showUpgradeTrue() external pure returns (bool) {
-        return true;
     }
 }

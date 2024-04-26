@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import {Upgrades, Options} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import "eas-contracts/IEAS.sol";
-import "../src/VerificationsResolverOnlyForTestUpgrade.sol";
-import "./mocks/MockEAS.sol";
-import "./mocks/MockSchemaRegistry.sol";
-import "../src/VerificationsResolver.sol";
+import "../../src/deprecated/VerificationsResolverOnlyForTestUpgrade.sol";
+import "../mocks/MockEAS.sol";
+import "../mocks/MockSchemaRegistry.sol";
+import "../../src/deprecated/VerificationsResolver.sol";
 
 contract VerificationsResolverTestForUpgrade is Test {
 
