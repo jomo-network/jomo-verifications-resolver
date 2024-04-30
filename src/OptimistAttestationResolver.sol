@@ -9,8 +9,6 @@ import {Attestation} from "eas-contracts/Common.sol";
 
 import {AllowlistResolverUpgradeable} from "./abstract/AllowlistResolverUpgradeable.sol";
 import {SchemaResolverUpgradeable} from "./abstract/SchemaResolverUpgradeable.sol";
-import {Optimist} from "./op-nft/Optimist.sol";
-import "./op-nft/OptimistV2.sol";
 
 /**
  * @title EAS Schema Resolver for Optimist Attestation Resolver
@@ -24,18 +22,18 @@ contract OptimistAttestationResolver is
     PausableUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    event OptimistAttestationCreated(address indexed attester);
-    event OptimistAttestationRevoked(address indexed attester);
+    event AttesterAdded(address indexed attester);
+    event AttesterRemoved(address indexed attester);
 
-    bytes32 public constant PAUSE_ROLE = keccak256("optimist.hackathon-participants.pause-role");
-    bytes32 public constant ADMIN_ROLE = keccak256("optimist.hackathon-participants.admin-role");
-    bytes32 public constant ALLOWLIST_ROLE = keccak256("optimist.hackathon-participants.allowlist-role");
+    event AttestationCreated(address indexed recipient);
+    event AttestationRevoked(address indexed recipient);
+
+    bytes32 public constant PAUSE_ROLE = keccak256("optimist.allowlist-attestation-issuer.pause-role");
+    bytes32 public constant ADMIN_ROLE = keccak256("optimist.allowlist-attestation-issuer.admin-role");
+    bytes32 public constant ALLOWLIST_ROLE = keccak256("optimist.allowlist-attestation-issuer.allowlist-role");
 
     /// @notice track recipient attestationUid
     mapping (address => bytes32) private attestationUidByRecipient;
-
-    /// @notice Optimist NFT
-    Optimist private optimist;
 
     /**
     * @dev Locks the contract, preventing any future reinitialization. This implementation contract was designed to be called through proxies.
@@ -50,7 +48,7 @@ contract OptimistAttestationResolver is
     * @param admin The address to be granted with the default admin Role.
     * @param eas The address of the EAS attestation contract.
     */
-    function initialize(address admin, IEAS eas, Optimist _optimist) initializer public {
+    function initialize(address admin, IEAS eas) initializer public {
         __SchemaResolver_init(eas);
         __AccessControl_init();
         __Pausable_init();
@@ -60,7 +58,6 @@ contract OptimistAttestationResolver is
         require(_grantRole(ADMIN_ROLE, admin));
         _setRoleAdmin(PAUSE_ROLE, ADMIN_ROLE);
         _setRoleAdmin(ALLOWLIST_ROLE, ADMIN_ROLE);
-        optimist = _optimist;
     }
 
     /// @notice check user has attestation
@@ -76,54 +73,47 @@ contract OptimistAttestationResolver is
     /// @inheritdoc SchemaResolverUpgradeable
     function onAttest(
         Attestation calldata attestationInput,
-        uint256
+        uint256 value
     ) internal
     whenNotPaused
     override(SchemaResolverUpgradeable, AllowlistResolverUpgradeable)
     returns (bool)
     {
-        require(!allowedAttesters[attestationInput.attester], "OptimistAttestationResolver: attester is not allowed");
-        require(attestationUidByRecipient[attestationInput.recipient] == bytes32(0), "OptimistAttestationResolver: recipient already record by uid");
+        require(AllowlistResolverUpgradeable.onAttest(attestation, value), "OptimistAttestationResolver: attester is not allowed");
+        require(attestationUidByRecipient[attestationInput.recipient] == bytes32(0), "OptimistAttestationResolver: recipient already has an attestation");
         attestationUidByRecipient[attestationInput.recipient] = attestationInput.uid;
-        optimist.mint(attestationInput.recipient);
+        emit AttestationCreated(attestationInput.recipient);
         return true;
     }
 
     /// @inheritdoc SchemaResolverUpgradeable
     function onRevoke(
         Attestation calldata attestationInput,
-        uint256
+        uint256 value
     ) internal whenNotPaused override(SchemaResolverUpgradeable, AllowlistResolverUpgradeable) returns (bool) {
-        require(!allowedAttesters[attestationInput.attester], "OptimistAttestationResolver: attester is not allowed");
-        require(attestationUidByRecipient[attestationInput.recipient] != bytes32(0), "OptimistAttestationResolver: recipient not record by uid");
+        require(AllowlistResolverUpgradeable.onRevoke(attestation, value), "OptimistAttestationResolver: attester is not allowed");
+        require(attestationUidByRecipient[attestationInput.recipient] != bytes32(0), "OptimistAttestationResolver: recipient does not have an attestation");
         attestationUidByRecipient[attestationInput.recipient] = bytes32(0);
+        emit AttestationRevoked(attestationInput.recipient);
         return true;
     }
 
-    /**
-    * @dev Pause the contract or not.
-    * @param enableOrNot A flag used to determine whether to pause.
-    */
-    function enablePaused(bool enableOrNot) external onlyRole(PAUSE_ROLE) {
-        if (enableOrNot) {
-            _pause();
-        } else {
-            _unpause();
-        }
+    function pause() external onlyRole(PAUSER_ROLE) {
+        _pause();
     }
 
-    /**
-    * @dev Allow or remove attester.
-    * @param enableOrNot A flag used to determine whether to allow or remove.
-    * @param attester The attester address
-    */
-    function enableAllowAttester(bool enableOrNot, address attester) external onlyRole(ALLOWLIST_ROLE) {
-        if (enableOrNot) {
-            _allowAttester(attester);
-            emit OptimistAttestationCreated(attester);
-        } else {
-            _removeAttester(attester);
-            emit OptimistAttestationRevoked(attester);
-        }
+    function unpause() external onlyRole(PAUSER_ROLE) {
+        _unpause();
     }
+
+    function addAttesterToAttesterAllowlist(address _newAttester) external onlyRole(ADMIN_ROLE) {
+        _allowAttester(_newAttester);
+        emit AttesterAdded(_newAttester);
+    }
+
+    function removeAttesterFromAttesterAllowlist(address _attesterToRemove) external onlyRole(ADMIN_ROLE) {
+        _removeAttester(_attesterToRemove);
+        emit AttesterRemoved(_attesterToRemove);
+    }
+
 }
