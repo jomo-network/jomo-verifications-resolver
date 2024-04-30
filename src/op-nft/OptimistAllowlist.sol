@@ -75,7 +75,7 @@ contract OptimistAllowlist is ISemver {
     /// @return allowed_ Whether or not the address is allowed to mint yet.
     function isAllowedToMint(address _claimer) public view returns (bool allowed_) {
         allowed_ = _hasAttestationFromAllowlistAttestor(_claimer) || _hasAttestationFromCoinbaseQuestAttestor(_claimer)
-            || _hasAttestationFromOptimistInviter(_claimer);
+            || _hasAttestationFromOptimistInviter(_claimer) || _hasEasOptimistAllowlistAttestation(_claimer);
     }
 
     /// @notice Checks whether an address has a valid 'optimist.can-mint' attestation from the
