@@ -10,7 +10,7 @@ import {MockEAS} from "./mocks/MockEAS.sol";
 import {OptimistAllowlistAttestationResolver} from "../src/OptimistAllowlistAttestationResolver.sol";
 import "../src/op-nft/Optimist.sol";
 
-contract OptimistAttestationResolverTest is Test {
+contract OptimistAllowlistAttestationResolverTest is Test {
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
 
     string constant name = "Optimist name";
@@ -18,7 +18,7 @@ contract OptimistAttestationResolverTest is Test {
     string constant base_uri = "https://storageapi.fleek.co/6442819a1b05-bucket/optimist-nft/attributes";
     bytes32 public constant ALLOWLIST_ROLE = keccak256("optimist.allowlist-attestation-issuer.allowlist-role");
 
-    OptimistAllowlistAttestationResolver optimistAttestationResolver;
+    OptimistAllowlistAttestationResolver optimistAllowlistAttestationResolver;
     Optimist optimistNFT;
     MockEAS eas;
     MockSchemaRegistry registry;
@@ -64,17 +64,17 @@ contract OptimistAttestationResolverTest is Test {
             admin,
             abi.encodeCall(OptimistAllowlistAttestationResolver.initialize, (admin, eas))
         );
-        optimistAttestationResolver = OptimistAllowlistAttestationResolver(payable(resolverProxy));
+        optimistAllowlistAttestationResolver = OptimistAllowlistAttestationResolver(payable(resolverProxy));
         vm.prank(admin);
-        optimistAttestationResolver.grantRole(ALLOWLIST_ROLE, allowlist_role);
+        optimistAllowlistAttestationResolver.grantRole(ALLOWLIST_ROLE, allowlist_role);
         vm.prank(allowlist_role);
-        optimistAttestationResolver.addAttesterToAttesterAllowlist(attester);
+        optimistAllowlistAttestationResolver.addAttesterToAttesterAllowlist(attester);
         optimistAllowlist = new OptimistAllowlist({
             _attestationStation: attestationStation ,
             _allowlistAttestor: fish_allowlistAttestor,
             _coinbaseQuestAttestor: gong_coinbaseAttestor,
             _optimistInviter: eve_inviteGranter,
-            _easOptimistAllowlistAttestationResolver: optimistAttestationResolver
+            _easOptimistAllowlistAttestationResolver: optimistAllowlistAttestationResolver
         });
         Options memory options;
         options.constructorData = abi.encode(
@@ -120,7 +120,7 @@ contract OptimistAttestationResolverTest is Test {
 
     function _createAttestation() internal {
         string memory schema = "";
-        bytes32 id = registry.register(schema, optimistAttestationResolver, false);
+        bytes32 id = registry.register(schema, optimistAllowlistAttestationResolver, false);
         assertNotEq(id, bytes32(0));
         AttestationRequestData memory requestData = AttestationRequestData({
             recipient: bob,
@@ -137,11 +137,11 @@ contract OptimistAttestationResolverTest is Test {
         vm.prank(attester);
         bytes32 id2 = eas.attest(request);
         assertNotEq(id2, bytes32(0));
-        assertTrue(optimistAttestationResolver.hasAttestation(bob));
+        assertTrue(optimistAllowlistAttestationResolver.hasAttestation(bob));
     }
 
     function test_isemver_version() view external {
-        assertEq(optimistAttestationResolver.version(), string(
+        assertEq(optimistAllowlistAttestationResolver.version(), string(
             abi.encodePacked(Strings.toString(1), ".", Strings.toString(3), ".", Strings.toString(0))
         ));
     }

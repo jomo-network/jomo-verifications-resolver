@@ -1,5 +1,5 @@
-# OptimistAllowlistResolver
+# OptimistAllowlistAttestationResolver
 
 ## Test
 
-`forge clean && forge build && forge test --ffi -vvv --match-contract OptimistAttestationResolverTest`
+`forge clean && forge build && forge test --ffi -vvv --match-contract OptimistAllowlistAttestationResolverTest`
