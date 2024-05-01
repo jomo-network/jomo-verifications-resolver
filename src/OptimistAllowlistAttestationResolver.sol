@@ -10,32 +10,28 @@ import {Attestation} from "eas-contracts/Common.sol";
 import {AllowlistResolverUpgradeable} from "./abstract/AllowlistResolverUpgradeable.sol";
 import {SchemaResolverUpgradeable} from "./abstract/SchemaResolverUpgradeable.sol";
 import {Optimist} from "./op-nft/Optimist.sol";
-import "./op-nft/OptimistV2.sol";
 
 /**
  * @title EAS Schema Resolver for Optimist Attestation Resolver
  * @notice Manages schemas related to Optimist attestations.
  * @dev Only allowlisted entities can attest; successful attestations are record and allow to mint.
  */
-contract OptimistAttestationResolver is
+contract OptimistAllowlistAttestationResolver is
     SchemaResolverUpgradeable,
     AllowlistResolverUpgradeable,
     AccessControlUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    event OptimistAttestationCreated(address indexed attester);
-    event OptimistAttestationRevoked(address indexed attester);
+    event AttestationCreated(address indexed recipient);
+    event AttestationRevoked(address indexed recipient);
 
-    bytes32 public constant PAUSE_ROLE = keccak256("optimist.hackathon-participants.pause-role");
-    bytes32 public constant ADMIN_ROLE = keccak256("optimist.hackathon-participants.admin-role");
-    bytes32 public constant ALLOWLIST_ROLE = keccak256("optimist.hackathon-participants.allowlist-role");
+    bytes32 public constant PAUSE_ROLE = keccak256("optimist.allowlist-attestation-issuer.pause-role");
+    bytes32 public constant ADMIN_ROLE = keccak256("optimist.allowlist-attestation-issuer.admin-role");
+    bytes32 public constant ALLOWLIST_ROLE = keccak256("optimist.allowlist-attestation-issuer.allowlist-role");
 
     /// @notice track recipient attestationUid
     mapping (address => bytes32) private attestationUidByRecipient;
-
-    /// @notice Optimist NFT
-    Optimist private optimist;
 
     /**
     * @dev Locks the contract, preventing any future reinitialization. This implementation contract was designed to be called through proxies.
@@ -50,7 +46,7 @@ contract OptimistAttestationResolver is
     * @param admin The address to be granted with the default admin Role.
     * @param eas The address of the EAS attestation contract.
     */
-    function initialize(address admin, IEAS eas, Optimist _optimist) initializer public {
+    function initialize(address admin, IEAS eas) initializer public {
         __SchemaResolver_init(eas);
         __AccessControl_init();
         __Pausable_init();
@@ -60,7 +56,6 @@ contract OptimistAttestationResolver is
         require(_grantRole(ADMIN_ROLE, admin));
         _setRoleAdmin(PAUSE_ROLE, ADMIN_ROLE);
         _setRoleAdmin(ALLOWLIST_ROLE, ADMIN_ROLE);
-        optimist = _optimist;
     }
 
     /// @notice check user has attestation
@@ -76,54 +71,62 @@ contract OptimistAttestationResolver is
     /// @inheritdoc SchemaResolverUpgradeable
     function onAttest(
         Attestation calldata attestationInput,
-        uint256
+        uint256 value
     ) internal
     whenNotPaused
     override(SchemaResolverUpgradeable, AllowlistResolverUpgradeable)
     returns (bool)
     {
-        require(!allowedAttesters[attestationInput.attester], "OptimistAttestationResolver: attester is not allowed");
-        require(attestationUidByRecipient[attestationInput.recipient] == bytes32(0), "OptimistAttestationResolver: recipient already record by uid");
+        require(AllowlistResolverUpgradeable.onAttest(attestationInput, value), "OptimistAttestationResolver: attester is not allowed");
+        require(attestationUidByRecipient[attestationInput.recipient] == bytes32(0), "OptimistAttestationResolver: recipient already has an attestation");
         attestationUidByRecipient[attestationInput.recipient] = attestationInput.uid;
-        optimist.mint(attestationInput.recipient);
+        emit AttestationCreated(attestationInput.recipient);
         return true;
     }
 
     /// @inheritdoc SchemaResolverUpgradeable
     function onRevoke(
         Attestation calldata attestationInput,
-        uint256
+        uint256 value
     ) internal whenNotPaused override(SchemaResolverUpgradeable, AllowlistResolverUpgradeable) returns (bool) {
-        require(!allowedAttesters[attestationInput.attester], "OptimistAttestationResolver: attester is not allowed");
-        require(attestationUidByRecipient[attestationInput.recipient] != bytes32(0), "OptimistAttestationResolver: recipient not record by uid");
+        require(AllowlistResolverUpgradeable.onRevoke(attestationInput, value), "OptimistAttestationResolver: attester is not allowed");
+        require(attestationUidByRecipient[attestationInput.recipient] != bytes32(0), "OptimistAttestationResolver: recipient does not have an attestation");
         attestationUidByRecipient[attestationInput.recipient] = bytes32(0);
+        emit AttestationRevoked(attestationInput.recipient);
         return true;
     }
 
     /**
-    * @dev Pause the contract or not.
-    * @param enableOrNot A flag used to determine whether to pause.
+    * @dev Pause the contract.
     */
-    function enablePaused(bool enableOrNot) external onlyRole(PAUSE_ROLE) {
-        if (enableOrNot) {
-            _pause();
-        } else {
-            _unpause();
-        }
+    function pause() external onlyRole(PAUSE_ROLE) {
+        _pause();
     }
 
     /**
-    * @dev Allow or remove attester.
-    * @param enableOrNot A flag used to determine whether to allow or remove.
-    * @param attester The attester address
+    * @dev UnPause the contract.
     */
-    function enableAllowAttester(bool enableOrNot, address attester) external onlyRole(ALLOWLIST_ROLE) {
-        if (enableOrNot) {
-            _allowAttester(attester);
-            emit OptimistAttestationCreated(attester);
-        } else {
-            _removeAttester(attester);
-            emit OptimistAttestationRevoked(attester);
-        }
+    function unpause() external onlyRole(PAUSE_ROLE) {
+        _unpause();
+    }
+
+    /*
+    * @dev Add a new attester to allowedAttesters
+    */
+    function addAttesterToAttesterAllowlist(address _newAttester)
+        external
+        onlyRole(ALLOWLIST_ROLE)
+    {
+        _allowAttester(_newAttester);
+    }
+
+    /*
+    * @dev remove a attester from allowedAttesters
+    */
+    function removeAttesterFromAttesterAllowlist(address _attesterToRemove)
+        external
+        onlyRole(ALLOWLIST_ROLE)
+    {
+        _removeAttester(_attesterToRemove);
     }
 }
