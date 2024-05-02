@@ -35,7 +35,7 @@ contract OptimistAllowlist is ISemver {
     ///         attestations.
     address public immutable OPTIMIST_INVITER;
 
-    // @notice Address of OptimistAllowlistAttestationResolver contract that indexes EAS allowlist attestations
+    /// @notice Address of OptimistAllowlistAttestationResolver contract that indexes EAS allowlist attestations
     ///         attestations.
     OptimistAllowlistAttestationResolver public immutable EAS_OPTIMIST_ALLOWLIST_ATTESTATION_RESOLVER;
 

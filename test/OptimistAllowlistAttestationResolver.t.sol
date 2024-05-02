@@ -9,6 +9,7 @@ import "./mocks/MockSchemaRegistry.sol";
 import {MockEAS} from "./mocks/MockEAS.sol";
 import {OptimistAllowlistAttestationResolver} from "../src/OptimistAllowlistAttestationResolver.sol";
 import "../src/op-nft/Optimist.sol";
+import {Proxy} from "../src/utils/Proxy.sol";
 
 contract OptimistAllowlistAttestationResolverTest is Test {
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
@@ -25,8 +26,8 @@ contract OptimistAllowlistAttestationResolverTest is Test {
     AttestationStation attestationStation;
     OptimistAllowlist optimistAllowlist;
 
-    address resolverProxy;
-    address optimistProxy;
+    Proxy resolverProxy;
+    Proxy optimistProxy;
     address admin = makeAddr("owner");
     address alice = address(10086);
     address bob = address(10090);
@@ -55,20 +56,26 @@ contract OptimistAllowlistAttestationResolverTest is Test {
         return uint256(uint160(address(_owner)));
     }
 
+    function _initializeOptimistAllowlistAttestationResolver() internal {
+        resolverProxy = new Proxy(admin);
+        OptimistAllowlistAttestationResolver resolverImpl = new OptimistAllowlistAttestationResolver();
+        vm.prank(admin);
+        resolverProxy.upgradeToAndCall(address(resolverImpl), abi.encodeCall(OptimistAllowlistAttestationResolver.initialize, (admin, eas)));
+        optimistAllowlistAttestationResolver = OptimistAllowlistAttestationResolver(payable(address(resolverProxy)));
+        vm.prank(admin);
+        optimistAllowlistAttestationResolver.grantRole(ALLOWLIST_ROLE, allowlist_role);
+        vm.prank(allowlist_role);
+
+        optimistAllowlistAttestationResolver.addAttesterToAttesterAllowlist(attester);
+    }
+
     function _initializeContracts() internal {
         attestationStation = new AttestationStation();
         registry = new MockSchemaRegistry();
         eas = new MockEAS(registry);
-        resolverProxy = Upgrades.deployTransparentProxy(
-            "OptimistAllowlistAttestationResolver.sol:OptimistAllowlistAttestationResolver",
-            admin,
-            abi.encodeCall(OptimistAllowlistAttestationResolver.initialize, (admin, eas))
-        );
-        optimistAllowlistAttestationResolver = OptimistAllowlistAttestationResolver(payable(resolverProxy));
-        vm.prank(admin);
-        optimistAllowlistAttestationResolver.grantRole(ALLOWLIST_ROLE, allowlist_role);
-        vm.prank(allowlist_role);
-        optimistAllowlistAttestationResolver.addAttesterToAttesterAllowlist(attester);
+
+        _initializeOptimistAllowlistAttestationResolver();
+
         optimistAllowlist = new OptimistAllowlist({
             _attestationStation: attestationStation ,
             _allowlistAttestor: fish_allowlistAttestor,
@@ -76,21 +83,12 @@ contract OptimistAllowlistAttestationResolverTest is Test {
             _optimistInviter: eve_inviteGranter,
             _easOptimistAllowlistAttestationResolver: optimistAllowlistAttestationResolver
         });
-        Options memory options;
-        options.constructorData = abi.encode(
+        optimistNFT = new Optimist(
             name, symbol,
             carol_baseURIAttestor,
             attestationStation,
             optimistAllowlist
         );
-        optimistProxy = Upgrades.deployTransparentProxy(
-            "Optimist.sol:Optimist",
-            admin,
-            "",
-            options
-        );
-        optimistNFT = Optimist(optimistProxy);
-
     }
 
     function test_mint_failed_before_attestation() external {
